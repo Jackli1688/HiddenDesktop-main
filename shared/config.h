@@ -1,6 +1,6 @@
 #pragma once
 
-#define MAGIC           "WKLWKL"
+#define MAGIC           "\xDE\xAD\xBE\xEF\xCA\xFE"
 #define WM_SET_QUALITY  WM_USER + 1
 
 typedef unsigned int        COMPATUINT;

@@ -15,4 +15,4 @@ _GetIp:
     ret
 
 _Leave:
-    db 'W', 'K', 'L', 'H', 'V', 'N', 'C'
+    db 'S', 'T', 'E', 'A', 'L', 'T', 'H'

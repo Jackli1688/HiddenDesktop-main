@@ -16,8 +16,8 @@ if __name__ in '__main__':
         PeExe = pefile.PE( option.f );
         PeSec = PeExe.sections[0].get_data();
 
-        if PeSec.find( b'WKLHVNC' ) != -1:
-            ScRaw = PeSec[ : PeSec.find( b'WKLHVNC' ) ];
+        if PeSec.find( b'STEALTH' ) != -1:
+            ScRaw = PeSec[ : PeSec.find( b'STEALTH' ) ];
             f = open( option.o, 'wb+' );
             f.write( ScRaw );
             f.close();

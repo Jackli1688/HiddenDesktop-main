@@ -15,4 +15,4 @@ GetIp:
     ret
 
 Leave:
-    db 'W', 'K', 'L', 'H', 'V', 'N', 'C'
+    db 'S', 'T', 'E', 'A', 'L', 'T', 'H'

