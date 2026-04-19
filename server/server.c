@@ -287,12 +287,15 @@ DWORD WINAPI ClientThread( PVOID param )
 
    if(connection == desktop)
    {
+        EnterCriticalSection( &gCrit );
         pClient = GetClient( TRUE, uhid, NULL );
         if( !pClient )
         {
+            LeaveCriticalSection( &gCrit );
             closesocket( s );
             return 0;
         };
+        LeaveCriticalSection( &gCrit );
 
         pClient->connections[desktop] = s;
 
@@ -435,6 +438,7 @@ DWORD WINAPI ClientThread( PVOID param )
         };
 
 cleanup:
+      if( compressedPixels ) free( compressedPixels );
       PostMessage( pClient->hWnd, WM_DESTROY, 0, 0 );
       return 0;
 

@@ -54,8 +54,8 @@ SECTION( D ) BOOL paintWindow( HWND hWnd, HDC hDc, HDC hDcScreen, PAPI pApi )
 
     HDC     hDcWindow = pApi->gdi32.CreateCompatibleDC( hDc );
     HBITMAP hBmpWindow = pApi->gdi32.CreateCompatibleBitmap( hDc, rect.right - rect.left, rect.bottom - rect.top );
+    HBITMAP hBmpOld = pApi->gdi32.SelectObject( hDcWindow, hBmpWindow );
 
-    pApi->gdi32.SelectObject( hDcWindow, hBmpWindow );
     if ( pApi->user32.PrintWindow( hWnd, hDcWindow, 0 ) )
     {
         pApi->gdi32.BitBlt( hDcScreen,
@@ -71,6 +71,7 @@ SECTION( D ) BOOL paintWindow( HWND hWnd, HDC hDc, HDC hDcScreen, PAPI pApi )
         ret = TRUE;
     };
 
+    pApi->gdi32.SelectObject( hDcWindow, hBmpOld );
     pApi->gdi32.DeleteObject( hBmpWindow );
     pApi->gdi32.DeleteDC( hDcWindow );
     return ret;

@@ -146,7 +146,7 @@ VOID WINAPI BofMain( PBAPI_TABLE BeaconApi, PVOID Argv, INT Argc )
         goto cleanup;
     };
 
-    CHAR runCmd[MAX_PATH] = { 0 };
+    CHAR runCmd[1024] = { 0 };
 
     Api.SHGetFolderPathA( NULL, CSIDL_SYSTEM, NULL, 0, runCmd );
     strcatA( runCmd, "\\rundll32.exe shell32.dll,#61" );

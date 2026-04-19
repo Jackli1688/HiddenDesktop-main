@@ -180,7 +180,7 @@ VOID WINAPI BofMain( PBAPI_TABLE BeaconApi, PVOID Argv, INT Argc )
         BeaconApi->BeaconPrintf( CALLBACK_OUTPUT, "Unable to set registry value - proceeding with launch" );
     };   
 
-    CHAR explorerPath[MAX_PATH * 2] = { 0 };
+    CHAR explorerPath[1024] = { 0 };
     if( Api.GetWindowsDirectoryA( explorerPath, MAX_PATH ) == 0 )
     {
         BeaconApi->BeaconPrintf( CALLBACK_ERROR, "Failed to get windows directory - Exiting" );
