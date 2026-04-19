@@ -196,7 +196,19 @@ VOID WINAPI BofMain( PBAPI_TABLE BeaconApi, PVOID Argv, INT Argc )
         BeaconApi->BeaconPrintf( CALLBACK_ERROR, "Failed to create process - Exiting" );
         goto cleanup;
     };
-    
+
+    // Trigger Shell refresh to initialize Start menu and taskbar properly
+    Api.Sleep(2000); // Wait for explorer to initialize
+    if (hShell32)
+    {
+        // Simulate shell refresh by sending WM_SETTINGCHANGE
+        HWND hShellTrayWnd = Api.FindWindowA("Shell_TrayWnd", NULL);
+        if (hShellTrayWnd)
+        {
+            Api.SendMessageA(hShellTrayWnd, WM_SETTINGCHANGE, 0, (LPARAM)"TraySettings");
+        }
+    }
+
 #if defined( _WIN64 )
     appbarData.cbSize = sizeof( appbarData );
     for ( int i = 0; i < 5; ++i )

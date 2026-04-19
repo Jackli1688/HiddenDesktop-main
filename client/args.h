@@ -15,5 +15,11 @@ typedef struct
     PBYTE       pPixels;
     PBYTE       pOldPixels;
     PBYTE       pTempPixels;
+    // For dynamic frame rate adjustment
+    DWORD       lastSendTime;
+    DWORD       avgLatency;
+    // For block-based updates
+    DWORD       blockSize;
+    PBYTE       pBlockHashes;
 
 } ARGS, *PARGS;
